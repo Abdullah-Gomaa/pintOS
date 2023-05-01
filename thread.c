@@ -34,12 +34,10 @@ static struct list all_list;
 static struct list sleep_list;
 static int load_avg;
 static bool priority_more (const struct list_elem *a_,
-                          const struct list_elem *b_,
-                          void *aux UNUSED); 
+                          const struct list_elem *b_); 
                 
 static bool
-priority_more (const struct list_elem *a_, const struct list_elem *b_,
-               void *aux UNUSED)
+priority_more (const struct list_elem *a_, const struct list_elem *b_)
 {
   ASSERT (a_ != NULL);
   ASSERT (b_ != NULL);
@@ -734,7 +732,7 @@ allocate_tid (void)
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 /***************************************************************************************************/
-static bool sleep_threads_less(const struct list_elem *first, const struct list_elem *second,void *aux UNUSED)
+static bool sleep_threads_less(const struct list_elem *first, const struct list_elem *second)
 {
   ASSERT (first != NULL);
   ASSERT (second != NULL);

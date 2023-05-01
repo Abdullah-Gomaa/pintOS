@@ -161,7 +161,7 @@ int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
 /*****************************************************************************************************/
-static bool sleep_threads_less(const struct list_elem *first, const struct list_elem *second,void *aux UNUSED);
+static bool sleep_threads_less(const struct list_elem *first, const struct list_elem *second);
 void thread_sleep(int64_t ticks);
 void thread_wakeup(void);
 void thread_given_set_priority (struct thread *, int, bool);

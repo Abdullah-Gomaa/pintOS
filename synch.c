@@ -33,17 +33,14 @@
 #include "threads/thread.h"
 
 static bool priority_sema_more (const struct list_elem *a_,
-                                const struct list_elem *b_,
-                                void *aux UNUSED);
+                                const struct list_elem *b_);
 static bool lock_priority_more (const struct list_elem *a_,
-                                const struct list_elem *b_,
-                                void *aux UNUSED);    
+                                const struct list_elem *b_);    
 static bool priority_more (const struct list_elem *a_,
-                           const struct list_elem *b_,
-                           void *aux UNUSED);      
+                           const struct list_elem *b_);      
 
 /*****************************************************************************************************/
-static bool lock_priority_more (const struct list_elem *a_, const struct list_elem *b_, void *aux UNUSED)
+static bool lock_priority_more (const struct list_elem *a_, const struct list_elem *b_)
 {
   ASSERT (a_ != NULL);
   ASSERT (b_ != NULL);
@@ -52,7 +49,7 @@ static bool lock_priority_more (const struct list_elem *a_, const struct list_el
 
   return a->priority_lock >= b->priority_lock;
 }
-static bool priority_more (const struct list_elem *a_, const struct list_elem *b_, void *aux UNUSED)
+static bool priority_more (const struct list_elem *a_, const struct list_elem *b_)
 {
   ASSERT (a_ != NULL);
   ASSERT (b_ != NULL);
@@ -239,7 +236,7 @@ lock_acquire (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
-  /* ##> Our implementation */
+
   struct thread *cur;
   struct thread *lock_holder;
   struct lock *lock_next;
@@ -471,7 +468,7 @@ cond_broadcast (struct condition *cond, struct lock *lock)
     cond_signal (cond, lock);
 }
 /******/
-static bool priority_sema_more (const struct list_elem *a_, const struct list_elem *b_, void *aux UNUSED)
+static bool priority_sema_more (const struct list_elem *a_, const struct list_elem *b_)
 {
   ASSERT (a_ != NULL);
   ASSERT (b_ != NULL);
