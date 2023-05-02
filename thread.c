@@ -455,6 +455,7 @@ thread_set_nice (int new_nice)
   /* Not yet implemented. */
   ASSERT (new_nice >= NICE_MIN && new_nice <= NICE_MAX);
   struct thread *cur;
+  enum intr_level old_level;
 
   cur = thread_current ();
   cur->nice = new_nice;
@@ -464,14 +465,13 @@ thread_set_nice (int new_nice)
     {
       if (cur->status == THREAD_READY)
         {
-          enum intr_level old_level;
+          /* Reinsert in ready list after calculating the advanced_priority to be ordered by priority */
           old_level = intr_disable ();
           list_remove (&cur->elem);
           list_insert_ordered (&ready_list, &cur->elem, priority_more, NULL);
           intr_set_level (old_level);
         }
-      else if (cur->status == THREAD_RUNNING &&
-               list_entry (list_begin (&ready_list),struct thread,elem)->priority > cur->priority)
+      else if (cur->status == THREAD_RUNNING && list_entry (list_begin (&ready_list),struct thread,elem)->priority > cur->priority)
         {
           thread_yield();
         }
@@ -746,15 +746,22 @@ void thread_sleep(int64_t ticks)
 {
   enum intr_level old_level;
   struct thread *current_t = thread_current ();
+
   if (ticks <= 0)
     /* Do not sleep */
     return;
+
   ASSERT(current_t->status == THREAD_RUNNING);
+
+  /* Assign the sleep_ticks to the tick to be wakenup at */
   current_t->sleep_ticks = ticks + timer_ticks ();
+  
+  /* Block the thread and insert it in the sleep list */
   old_level = intr_disable ();
   list_insert_ordered (&sleep_list, &current_t->elem, sleep_threads_less, NULL);
   thread_block ();
   intr_set_level (old_level);
+  
   return;
 }
 
@@ -771,15 +778,23 @@ void thread_wakeup(void)
   elem_cur = list_begin (&sleep_list);
   while (elem_cur != list_end (&sleep_list))
     {
+      /* Get next element from sleep list*/
       elem_next = list_next (elem_cur);
+
+      /* Get the current thread from sleep list*/
       t = list_entry (elem_cur, struct thread, elem);
+      
+      /* If it does not need to wakeup now, then break*/
       if (t->sleep_ticks > timer_ticks())
         break;
+      
+      /* unblock the thread, and remove it from the sleep list */
       old_level = intr_disable ();
       list_remove (elem_cur);
       thread_unblock (t);
       intr_set_level (old_level);
 
+      /* Update elem_cur to next element in sleep list */
       elem_cur = elem_next;
     }
 }
@@ -792,41 +807,34 @@ void thread_given_set_priority (struct thread *cur, int new_priority, bool is_do
    ASSERT (new_priority >= PRI_MIN && new_priority <= PRI_MAX);
    ASSERT (is_thread (cur));
 
-   /* if this operation is a not donatation
-    *   if the thread has been donated and the new priority is less 
-    *   or equal to the donated priority, we should delay the process
-    *   by preserve it in priority_original.
-    * otherwise, just do the donation, set priority to the donated
-    * priority, and mark the thread as a donated one.
-    */
-    
    if (!is_donated) 
      {
-       if (cur->is_donated && new_priority <= cur->priority) 
+      /* Operation is not donation */
+       if (cur->is_donated && new_priority <= cur->priority)
+          /* If it is already donated and the new priority is less than it's priority,
+          then store the new priority in current_priority */ 
           cur->priority_current = new_priority;
        else
           cur->priority = cur->priority_current = new_priority;
      }
    else 
      {
+      /* Do Donation*/
 	      cur->priority = new_priority;
         cur->is_donated = true;
      }
 
 
-  /* If the current thread's status is THREAD_READY, then just reinsert it
-   * to the ready_list in order to keep the ready_list in order; if its status
-   * is THREAD_RUNNING, then compare its priority with the largest one's
-   * priority in the ready_list: if the current one's is smaller, then yields
-   * the CPU.
-   */
   if (cur->status == THREAD_READY)
     {
+      /* Reinsert the thread in ready list to be ordered by newly set priority.*/
       list_remove (&cur->elem);
       list_insert_ordered (&ready_list, &cur->elem, priority_more, NULL);
     }
   else if (cur->status == THREAD_RUNNING && list_entry (list_begin (&ready_list),struct thread,elem)->priority > cur->priority)
     {
+      /* If the running thread priority is less then the priority of first thread in ready list,
+      then thread yield the CPU */
       thread_yield();
     }
   intr_set_level (old_level);

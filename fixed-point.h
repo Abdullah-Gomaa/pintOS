@@ -1,8 +1,7 @@
-/* ##> Our implementation */
 #ifndef THREADS_FIXED_POINT_H
 #define THREADS_FIXED_POINT_H
 
-#define P 17
+#define P 18
 #define Q 14
 #define FRACTION 1 << (Q)
 
@@ -23,4 +22,4 @@
 #define DIV_INT(x, n) (x) / (n)
 
 #endif
-/* <## */
+

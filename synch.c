@@ -153,6 +153,8 @@ sema_up (struct semaphore *sema)
     // thread_unblock (list_entry (list_pop_front (&sema->waiters),
                                 // struct thread, elem));
   sema->value++;
+
+  /* If the running thread priority is less then the priority of unblocked thread yield the CPU */
   if (next != NULL && next->priority > cur->priority)
   {
     thread_yield();
@@ -219,6 +221,7 @@ lock_init (struct lock *lock)
 
   lock->holder = NULL;
   sema_init (&lock->semaphore, 1);
+  /* Initialize lock priority with fake priority */
   lock->priority_lock = PRIORITY_FAKE;
 }
 
@@ -255,10 +258,14 @@ lock_acquire (struct lock *lock)
   while (!thread_mlfqs && lock_holder != NULL && lock_holder->priority < cur->priority)
     {
       thread_given_set_priority (lock_holder, cur->priority, true);
+
+      /* Make lock_priority equal to the highest priority in waiters list */
       if (lock_next->priority_lock < cur->priority)
         {
           lock_next->priority_lock = cur->priority;
         }
+        /* Nested Donation* /
+        /* Get the following lock that blocks the current holder */
       if (lock_holder->lock_blocked_by != NULL && lock_iter < LOCK_LEVEL)
         {
           lock_next = lock_holder->lock_blocked_by;
@@ -269,21 +276,16 @@ lock_acquire (struct lock *lock)
         break;
     }
   sema_down (&lock->semaphore);
-  /* Original implementation */
   /* lock->holder = thread_current (); */
 
+  /* After Getting the lock*/
   lock->holder = cur;
   if (!thread_mlfqs)
     {
-      /* After getting this lock, reset lock_blocked_by and add this lock
-       * to the locks list
-       */
       cur->lock_blocked_by = NULL;
-      /* Add this lock to the thread's lock holding list */
       list_insert_ordered (&cur->locks, &lock->elem_lock, lock_priority_more, NULL);
     }
   intr_set_level (old_level);
-  /* <## */
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -333,26 +335,18 @@ lock_release (struct lock *lock)
           cur->is_donated = false;
           thread_set_priority (cur->priority_current);
         }
-      /* Multiple donation situation */
+      /* Multiple donation */
       else
         {
-          /* locks list are sorted in descending order by the thread priority
-           * in a lock's semaphore's waiters
-           */
           struct lock *lock_first;
-          lock_first = list_entry (list_front (&cur->locks), struct lock,
-                                   elem_lock);
-          /* If there is at least one thread in the waiters list, then donate
-           * the lock's priority_lock to current thread
-           */
+          lock_first = list_entry (list_front (&cur->locks), struct lock,elem_lock);
+          /* If there is at least one thread in the waiters list, donate 
+          the lock priority_lock to current thread */
           if (lock_first->priority_lock != PRIORITY_FAKE)
             {
               thread_given_set_priority (cur, lock_first->priority_lock, true);
             }
-          /* If a lock's semaphore's waters list is empty, which mean's there
-           * is no thead acquiring this lock, reset current priority to its
-           * original priority
-           */
+            /* If no thread is waiting in the lock, reset priority to it's original */
           else
             {
               thread_set_priority (cur->priority_current);
